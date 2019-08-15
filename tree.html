@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+    body {
+        text-align: center;
+    }
+
+    svg {
+        margin-top: 32px;
+        border: 1px solid #aaa;
+    }
+
+    .person rect {
+        fill: #fff;
+        stroke: rgba(0, 0, 0, 0.15);
+        stroke-width: 1px;
+    }
+
+    .person {
+        font: 14px sans-serif;
+    }
+
+    .btn {
+        cursor: pointer;
+    }
+
+    .link {
+        fill: none;
+        stroke: rgba(0, 0, 0, 0.15);
+        stroke-width: 1.5px;
+    }
+
+    .btn circle {
+        stroke: rgba(0, 0, 0, 0.15);
+        fill: #fff;
+    }
+</style>
+
+<body>
+<script src="//cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+<script>
+    var json = {
+        "name": "Isaac Warren",
+        "id": "acd21329-2b99-5bdb-a080-ff15ad2fcaa6",
+        "_parents": [{
+            "name": "父Virgie Hampton",
+            "id": "56d25f0e-7c01-50f9-8dfe-9ed953ea5b33",
+            "_parents": [{
+                "name": "父Jared Evans",
+                "id": "efa251bb-13f7-583d-b5ec-c16f8fcd109f",
+            },
+                {
+                    "name": "父Mina Taylor",
+                    "id": "6a2c6fee-7e8c-5d14-97a0-2fb79c20c89f",
+                }
+            ]
+        },
+            {
+                "name": "父Matthew Haynes",
+                "id": "051d725d-cfe4-5694-a330-28b3f3e8b9b1",
+                "_parents": [{
+                    "name": "父Mayme Moss",
+                    "id": "5b79bad1-aa95-5d49-9c4b-ccd681efdeed",
+                },
+                    {
+                        "name": "父Barry Perry",
+                        "id": "214f52e2-51d5-51f8-9b3a-93b41b49ec58",
+                    }
+                ]
+            }
+        ],
+        "_children": [{
+            "name": "子Celia Frazier",
+            "id": "60d7d16b-2ec3-51ac-b016-a1b16cf56d39",
+            "_children": [{
+                "name": "子Bill Greene",
+                "id": "bda34c70-061b-5678-af24-f9648ecfb985",
+            },
+                {
+                    "name": "子Travis Day",
+                    "id": "dc3a79aa-4a4e-52b0-8e10-a88f00d77b93",
+                },
+            ]
+        },
+            {
+                "name": "子Jeremiah Webb",
+                "id": "f774bf05-430d-5cfe-9181-3a732233f0d3",
+                "_children": [{
+                    "name": "子Bill Greene",
+                    "id": "bda34c70-061b-5678-af24",
+                    "_children": [{
+                        "name": "子Bill Greene",
+                        "id": "bda34c70-061b-af24",
+                    },
+                        {
+                            "name": "子Travis Day",
+                            "id": "dc3a79aa-4a4e-8e10",
+                        },
+                    ]
+                },
+                    {
+                        "name": "子Travis Day",
+                        "id": "dc3a79aa-4a4e-52b0-8e10",
+                    },
+                ]
+            },
+            {
+                "name": "子Amelia Curtis",
+                "id": "a66042ef-d968-50a4-87e0-bea4e6793825",
+                "_children": [{
+                    "name": "子Bill Greene",
+                    "id": "bda34c70-061b-5678-af24-",
+                },
+                    {
+                        "name": "子Travis Day",
+                        "id": "dc3a79aa-4a4e-52b0-8e10-",
+                    },
+                ]
+            }
+        ]
+    }
+</script>
+<script>
+    var boxWidth = 150,
+        boxHeight = 40,
+        nodeWidth = 150,
+        nodeHeight = 200,
+
+// duration of transitions in ms
+        duration = 750,
+
+// d3 multiplies the node size by this value
+// to calculate the distance between nodes
+        separation = .5;
+
+    /**
+     * For the sake of the examples, I want the setup code to be at the top.
+     * However, since it uses a class (Tree) which is defined later, I wrap
+     * the setup code in a function at call it at the end of the example.
+     * Normally you would extract the entire Tree class defintion into a
+     * separate file and include it before this script tag.
+     */
+    function setup() {
+
+        var zoom = d3.behavior.zoom()
+            .scaleExtent([.1, 1]) //用于设置最小和最大的缩放比例
+            .on('zoom', function () {
+                svg.attr("transform", "translate(" + d3.event.translate + ") scale(" + d3.event.scale + ")");
+            })
+            // 当 zoom 事件发生时，调用 zoomed 函数
+            // ：zoomed 函数，用于更改需要缩放的元素的属性，d3.event.translate 是平移的坐标值，d3.event.scale 是缩放的值。
+            .translate([400, 200]);
+
+        var svg = d3.select("body").append("svg")
+            .attr('width', 1000)
+            .attr('height', 500)
+            .call(zoom)
+            .append('g')
+
+            // Left padding of tree so that the whole root node is on the screen.
+            // TODO: find a better way
+            .attr("transform", "translate(400,200)");
+
+
+//父节点
+        var ancestorTree = new Tree(svg, 'ancestor', -1);
+        ancestorTree.children(function (person) {
+            if (person.collapsed) {
+                return;
+            } else {
+                return person._parents;
+            }
+        });
+//子节点
+        var descendantsTree = new Tree(svg, 'descendant', 1);
+        descendantsTree.children(function (person) {
+            if (person.collapsed) {
+                return;
+            } else {
+                return person._children;
+            }
+        });
+
+// d3.json('data/8gens.json', function(error, json){
+
+// if(error) {
+// return console.error(error);
+// }
+
+// D3 modifies the objects by setting properties such as
+// coordinates, parent, and children. Thus the same node
+// node can't exist in two trees. But we need the root to
+// be in both so we create proxy nodes for the root only.
+        var ancestorRoot = rootProxy(json);
+        var descendantRoot = rootProxy(json);
+
+// Start with only the first few generations of ancestors showing
+// ancestorRoot._parents.forEach(function (parents) {
+// parents._parents.forEach();
+// });
+        ancestorRoot._parents.forEach(collapse);
+// Start with only one generation of descendants showing
+        descendantRoot._children.forEach(collapse);
+
+// Set the root nodes
+        ancestorTree.data(ancestorRoot);
+        descendantsTree.data(descendantRoot);
+
+// Draw the tree
+        ancestorTree.draw(ancestorRoot);
+        descendantsTree.draw(descendantRoot);
+
+// });
+
+    }
+
+    function rootProxy(root) {
+        return {
+            name: root.name,
+            id: root.id,
+            x0: 0,
+            y0: 0,
+            _children: root._children,
+            _parents: root._parents,
+            collapsed: false,
+            root_parents: false,
+            root_children: false
+        };
+    }
+
+    /**
+     * Shared code for drawing ancestors or descendants.
+     * `selector` is a class that will be applied to links
+     * and nodes so that they can be queried later when
+     * the tree is redrawn.
+     * `direction` is either 1 (forward) or -1 (backward).
+     */
+    var Tree = function (svg, selector, direction) {
+        this.svg = svg;
+        this.selector = selector;
+        this.direction = direction;
+
+        this.tree = d3.layout.tree()
+
+        // Using nodeSize we are able to control
+        // the separation between nodes. If we used
+        // the size parameter instead then d3 would
+        // calculate the separation dynamically to fill
+        // the available space.
+        // .nodeSize([nodeWidth, nodeHeight])
+            .nodeSize([nodeWidth, nodeHeight])
+
+            // By default, cousins are drawn further apart than siblings.
+            // By returning the same value in all cases, we draw cousins
+            // the same distance apart as siblings.
+            .separation(function () {
+                return 1.5;
+            });
+    };
+
+    /**
+     * Set the `children` function for the tree
+     */
+    Tree.prototype.children = function (fn) {
+        this.tree.children(fn);
+        return this;
+    };
+
+    /**
+     * Set the root of the tree
+     */
+    Tree.prototype.data = function (data) {
+        this.root = data;
+        return this;
+    };
+
+    /**
+     * Draw/redraw the tree
+     */
+    Tree.prototype.draw = function (source) {
+        if (this.root) {
+            var nodes = this.tree.nodes(this.root),
+                links = this.tree.links(nodes);
+            this.drawLinks(links, source);
+            this.drawNodes(nodes, source);
+            this.drawBtn(nodes, source);
+        } else {
+            throw new Error('Missing root');
+        }
+        return this;
+    };
+
+    /**
+     * Draw/redraw the connecting lines
+     */
+    Tree.prototype.drawLinks = function (links, source) {
+
+        var self = this;
+
+// Update links
+        var link = self.svg.selectAll("path.link." + self.selector)
+
+        // The function we are passing provides d3 with an id
+        // so that it can track when data is being added and removed.
+        // This is not necessary if the tree will only be drawn once
+        // as in the basic example.
+            .data(links, function (d) {
+                return d.target.id;
+            });
+
+        var diagonal = d3.svg.diagonal()
+            .projection(function (d) {
+                return [d.x, (d.y + 20) * self.direction];
+            });
+// Add new links
+// Transition new links from the source's
+// old position to the links final position
+// var diagonal = d3.linkHorizontal().x(d => d.x).y(d => d.y)
+
+        link.enter().append("path")
+            .attr("class", "link " + self.selector)
+            .attr("d", d => {
+                const o = {
+                    x: source.x0,
+                    y: source.y0
+                };
+                return diagonal({
+                    source: o,
+                    target: o
+                });
+            }).transition()
+            .duration(duration)
+// Update the old links positions
+// link.transition()
+// .duration(duration)
+// .attr("d", function (d) {
+// return elbow(d, self.direction);
+// });
+        link.transition()
+            .duration(duration)
+            .attr("d", function (d) {
+                return diagonal(d);
+            });
+
+// Remove any links we don't need anymore
+// if part of the tree was collapsed
+// Transition exit links from their current position
+// to the source's new position
+        link.exit()
+            .transition()
+            .duration(duration)
+            .attr("d", d => {
+                const o = {
+                    x: source.x,
+                    y: source.y
+                };
+                return diagonal({
+                    source: o,
+                    target: o
+                });
+            })
+            .remove();
+
+    };
+
+
+    /**
+     * Draw/redraw the person boxes.
+     */
+    Tree.prototype.drawNodes = function (nodes, source) {
+        var self = this;
+
+// Update nodes
+        var node = self.svg.selectAll("g.person." + self.selector)
+
+        // The function we are passing provides d3 with an id
+        // so that it can track when data is being added and removed.
+        // This is not necessary if the tree will only be drawn once
+        // as in the basic example.
+            .data(nodes, function (person) {
+                return person.id;
+            });
+
+// Add any new nodes
+        var nodeEnter = node.enter().append("g")
+            .attr("class", "person " + self.selector)
+            // Add new nodes at the right side of their child's box.
+            // They will be transitioned into their proper position.
+            .attr('transform', function (person) {
+// 节点从哪里出来的位移
+                return 'translate(' + source.x0 + ',' + (self.direction * (source.y0 + boxHeight / 2)) + ')';
+            })
+
+// Draw the rectangle person boxes.
+// Start new boxes with 0 size so that
+// we can transition them to their proper size.
+        nodeEnter.append("rect")
+            .attr({
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0
+            });
+
+// Draw the person's name and position it inside the box
+        nodeEnter.append("text")
+            .attr("dx", 0)
+            .attr("dy", 5)
+            .attr("text-anchor", "start")
+            .attr('class', 'name')
+            .text(function (d) {
+                return d.name;
+            })
+            .style('fill-opacity', 0);
+
+
+// Update the position of both old and new nodes
+        var nodeUpdate = node.transition()
+            .duration(duration)
+            .attr("transform", function (d) {
+                return "translate(" + d.x + "," + (self.direction * d.y) + ")";
+            });
+
+
+// 盒子边框
+        nodeUpdate.select('rect')
+            .attr({
+                x: -(boxWidth / 2),
+                y: -(boxHeight / 2),
+                width: boxWidth,
+                height: boxHeight,
+                rx: "2",
+            })
+// Move text to it's proper position
+// 盒子内部文本
+        nodeUpdate.select('text')
+            .attr("dx", -(boxWidth / 2) + 10)
+            .style('fill-opacity', 1)
+            .style('vertical-align', 'middle');
+
+// Remove nodes we aren't showing anymore
+        var nodeExit = node.exit()
+            .transition()
+            .duration(duration)
+            .attr("transform", function (d) {
+                return 'translate(' + source.x + ',' + (self.direction * (source.y + boxHeight / 2)) + ')';
+            })
+            .remove();
+
+// Shrink boxes as we remove them
+        nodeExit.select('rect')
+            .attr({
+                x: 0,
+                y: 0,
+                width: 0,
+                height: 0
+            });
+
+// Fade out the text as we remove it
+        nodeExit.select('text')
+            .style('fill-opacity', 0)
+            .attr('dx', 0);
+
+// a(nodeEnter, self, source)
+// Stash the old positions for transition.
+        nodes.forEach(function (person) {
+            person.x0 = person.x;
+            person.y0 = person.y;
+        });
+
+    };
+    Tree.prototype.drawBtn = function (nodes, source) {
+        var self = this;
+
+// Update nodes
+        var node = self.svg.selectAll("g.btn." + self.selector)
+
+        // The function we are passing provides d3 with an id
+        // so that it can track when data is being added and removed.
+        // This is not necessary if the tree will only be drawn once
+        // as in the basic example.
+            .data(nodes, function (person) {
+                return person.id;
+            });
+// // Add any new nodes
+        var nodeEnter = node.enter().append("g")
+            .attr("class", "btn " + self.selector)
+            // Add new nodes at the right side of their child's box.
+            // They will be transitioned into their proper position.
+            .attr('transform', function (person) {
+// 节点从哪里出来的位移
+                return 'translate(' + source.x0 + ',' + (self.direction * (source.y0 + boxHeight / 2)) + ')';
+            })
+            .on('click', function (person, ...event) {
+                if (this.childNodes[1].innerHTML === '+') {
+                    this.childNodes[1].innerHTML = '-'
+                } else {
+                    this.childNodes[1].innerHTML = '+'
+                }
+                self.togglePerson(person);
+            });
+
+// // Draw the rectangle person boxes.
+// // Start new boxes with 0 size so that
+// // we can transition them to their proper size.
+        nodeEnter.append("circle")
+            .attr({
+                x: 0,
+                y: 0,
+                r: 0,
+            })
+
+        nodeEnter.append("text")
+            .attr("x", "0")
+            .attr("dy", function (d) {
+                if (self.direction === -1) {
+                    return -12
+                } else {
+                    return 26
+                }
+            })
+            .attr('r', 80)
+            .attr("text-anchor", "middle")
+            .style("fill", "rgba(0, 0, 0, 0.15)")
+            .style('font-size', '22px')
+            .text(function (d) {
+                if (!d.depth) {
+                    return ''
+                }
+                if (self.direction === -1) {
+                    if (d._parents && d._parents.length) {
+                        return d.collapsed ? '+' : '-'
+                    } else {
+                        return "";
+                    }
+                } else {
+                    if (d._children && d._children.length) {
+                        return d.collapsed ? '+' : '-'
+                    } else {
+                        return "";
+                    }
+                }
+            })
+            .style('fill-opacity', 0);
+
+
+// // Update the position of both old and new nodes
+        var nodeUpdate = node.transition()
+            .duration(duration)
+            .attr("transform", function (d) {
+                return "translate(" + d.x + "," + (self.direction * d.y) + ")";
+            });
+
+
+        nodeUpdate.select('circle')
+            .attr("cx", 0)
+            .attr("cy", function (d) {
+                if (self.direction === -1) {
+                    return -20
+                } else {
+                    return 20
+                }
+            })
+            .attr("r", function (d) {
+                if (!d.depth) {
+                    return 0
+                }
+                if (self.direction === -1) {
+                    return d._parents && d._parents.length ? 10 : 0;
+                } else {
+                    return d._children && d._children.length ? 10 : 0;
+                }
+            })
+        nodeUpdate.select('text')
+            .style('fill-opacity', 1)
+
+
+// Remove nodes we aren't showing anymore
+
+        var nodeExit = node.exit()
+            .transition()
+            .duration(duration)
+            .attr("transform", function (d) {
+                return 'translate(' + source.x + ',' + (self.direction * (source.y + boxHeight / 2)) + ')';
+            })
+            .remove();
+// // Shrink boxes as we remove them
+        nodeExit.select('circle')
+            .attr({
+                x: 0,
+                y: 0,
+                r: 0,
+            });
+
+// Fade out the text as we remove it
+        nodeExit.select('text')
+            .style('fill-opacity', 0)
+
+
+        nodes.forEach(function (person) {
+            person.x0 = person.x;
+            person.y0 = person.y;
+        });
+
+    };
+    /**
+     * Update a person's state when they are clicked.
+     */
+
+    Tree.prototype.togglePerson = function (person, direction) {
+
+// Don't allow the root to be collapsed because that's
+// silly (it also makes our life easier)
+        if (person === this.root) {
+            return '';
+        } else {
+            if (person.collapsed) {
+                person.collapsed = false;
+            } else {
+                collapse(person);
+            }
+            this.draw(person);
+        }
+    };
+
+    /**
+     * Collapse person (hide their ancestors). We recursively
+     * collapse the ancestors so that when the person is
+     * expanded it will only reveal one generation. If we don't
+     * recursively collapse the ancestors then when
+     * the person is clicked on again to expand, all ancestors
+     * that were previously showing will be shown again.
+     * If you want that behavior then just remove the recursion
+     * by removing the if block.
+     */
+    function collapse(person) {
+        person.collapsed = true;
+        if (person._parents) {
+            person._parents.forEach(collapse);
+        }
+        if (person._children) {
+            person._children.forEach(collapse);
+        }
+    }
+
+    // function rootCollapse(person) {
+    // person.collapsed = true;
+    // if (person._parents) {
+    // person._parents.forEach(collapse);
+    // }
+    // if (person._children) {
+    // person._children.forEach(collapse);
+    // }
+    // }
+
+    /**
+     * Custom path function that creates straight connecting
+     * lines. Calculate start and end position of links.
+     * Instead of drawing to the center of the node,
+     * draw to the border of the person profile box.
+     * That way drawing order doesn't matter. In other
+     * words, if we draw to the center of the node
+     * then we have to draw the links first and the
+     * draw the boxes on top of them.
+     */
+
+    function elbow(d, direction) {
+        let sourceX = d.source.x,
+            sourceY = d.source.y + (boxHeight / 2),
+            targetX = d.target.x,
+            targetY = d.target.y - (boxHeight / 2);
+        return "M" + sourceX + "," + (direction * sourceY) +
+            "V" + (direction * ((targetY - sourceY) / 2 + sourceY)) +
+            "H" + targetX +
+            "V" + (direction * targetY);
+
+    }
+
+    setup();
+</script>
